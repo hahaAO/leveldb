@@ -1197,6 +1197,15 @@ Status DBImpl::Delete(const WriteOptions& options, const Slice& key) {
   return DB::Delete(options, key);
 }
 
+// 1 创建writer，加锁入writers_
+// 2 等待write成为队头，在该线程写;或者被其它线程写完，直接返回。
+// 3 MakeRoomForWrite i dont konw
+// 4 把所有的write_batch（包括其它线程插入的），整合起来
+// 5 LastSequence记录当前序列号，并计算操作完成后的序列号(每次put或delete都会使序列号加一) 6
+// 6 先写日志(文本结构) 
+// 7 再迭代写入磁盘或内存里的表(有索引的结构，底层是跳表)
+// 8 LastSequence 操作完成后更新版本号
+
 Status DBImpl::Write(const WriteOptions& options, WriteBatch* updates) {
   Writer w(&mutex_);
   w.batch = updates;
@@ -1205,6 +1214,7 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* updates) {
 
   MutexLock l(&mutex_);
   writers_.push_back(&w);
+  // STUDY 有可能插入队列后在其他的线程把这个write操作完成了
   while (!w.done && &w != writers_.front()) {
     w.cv.Wait();
   }
@@ -1215,8 +1225,12 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* updates) {
   // May temporarily unlock and wait.
   Status status = MakeRoomForWrite(updates == nullptr);
   uint64_t last_sequence = versions_->LastSequence();
+
+  // STUDY这里有个疑问，这里设置last_write为当前线程的write后，为什么之后会变成其它线程的write?
   Writer* last_writer = &w;
   if (status.ok() && updates != nullptr) {  // nullptr batch is for compactions
+    // STUDY [BuildBatchGroup]
+    // 不只是把当前write的writebatch进行操作，而且会把后面插入的也在这里操作了
     WriteBatch* write_batch = BuildBatchGroup(&last_writer);
     WriteBatchInternal::SetSequence(write_batch, last_sequence + 1);
     last_sequence += WriteBatchInternal::Count(write_batch);
@@ -1226,6 +1240,8 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* updates) {
     // and protects against concurrent loggers and concurrent writes
     // into mem_.
     {
+      // STUDY 这里释放锁可以让其他线程往队列push write，
+      // 之后它们会因为自己的write不是队头且未完成而阻塞，所以既可以提高性能也起到保护作用
       mutex_.Unlock();
       status = log_->AddRecord(WriteBatchInternal::Contents(write_batch));
       bool sync_error = false;
@@ -1252,6 +1268,8 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* updates) {
   }
 
   while (true) {
+    // STUDY writers_中，从队头到last_writer的操作都已经在该线程操作完成
+    // 因此通知其它线程的写操作，它们的write在该线程被写完了
     Writer* ready = writers_.front();
     writers_.pop_front();
     if (ready != &w) {
@@ -1259,6 +1277,10 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* updates) {
       ready->done = true;
       ready->cv.Signal();
     }
+    /* STUDY
+     这里的判断不写进while(bool)是因为，即使判断到是last_writer，也需要通知操作完成后才能break，
+     功能同do{}while()且可以捕获到while结构体里的值(比如这里的ready)做判断,个人认为是一种优雅的写法
+    */
     if (ready == last_writer) break;
   }
 

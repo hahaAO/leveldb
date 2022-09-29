@@ -6,6 +6,16 @@
 //    sequence: fixed64
 //    count: fixed32
 //    data: record[count]
+/*
+STUDY
+    WriteBatch::rep_ 的格式如下
+    sequence: fixed64, 前8个字节（（uint8）*8）放序列号
+    count: fixed32, 跟着4个字节(32位)放本次writebatch操作里写的次数
+    ValueType: kTypeDeletion or kTypeValue,char (1字节) 表明该操作是删除还是插入
+    data: record[count]
+    放每次写的key、value对，格式为([key长度]'\0'[key数据][value长度]'\0'[value数据])，共有count个ky对。
+    其中[key长度]和是可变长数字，即只截取32位数字的有效部分，用于节省空间
+*/
 // record :=
 //    kTypeValue varstring varstring         |
 //    kTypeDeletion varstring
@@ -80,6 +90,9 @@ Status WriteBatch::Iterate(Handler* handler) const {
 }
 
 int WriteBatchInternal::Count(const WriteBatch* b) {
+  // STUDY 这里的 "b->rep_.data() + 8"
+  // 与下面函数的  "&b->rep_[8]"
+  // 作用是一样的
   return DecodeFixed32(b->rep_.data() + 8);
 }
 
