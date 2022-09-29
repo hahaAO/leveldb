@@ -1197,15 +1197,15 @@ Status DBImpl::Delete(const WriteOptions& options, const Slice& key) {
   return DB::Delete(options, key);
 }
 
+// STUDY
 // 1 创建writer，加锁入writers_
 // 2 等待write成为队头，在该线程写;或者被其它线程写完，直接返回。
 // 3 MakeRoomForWrite i dont konw
 // 4 把所有的write_batch（包括其它线程插入的），整合起来
-// 5 LastSequence记录当前序列号，并计算操作完成后的序列号(每次put或delete都会使序列号加一) 6
-// 6 先写日志(文本结构) 
+// 5 记录当前序列号，并计算完成后的序列号(每次put或delete都会使序列号加一)
+// 6 先写日志(文本结构)
 // 7 再迭代写入磁盘或内存里的表(有索引的结构，底层是跳表)
-// 8 LastSequence 操作完成后更新版本号
-
+// 8 操作完成后更新版本号
 Status DBImpl::Write(const WriteOptions& options, WriteBatch* updates) {
   Writer w(&mutex_);
   w.batch = updates;
@@ -1226,11 +1226,11 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* updates) {
   Status status = MakeRoomForWrite(updates == nullptr);
   uint64_t last_sequence = versions_->LastSequence();
 
-  // STUDY这里有个疑问，这里设置last_write为当前线程的write后，为什么之后会变成其它线程的write?
   Writer* last_writer = &w;
   if (status.ok() && updates != nullptr) {  // nullptr batch is for compactions
     // STUDY [BuildBatchGroup]
-    // 不只是把当前write的writebatch进行操作，而且会把后面插入的也在这里操作了
+    // 不只是把当前 write 的writebatch进行操作，而且会把后面插入的也在这里操作了
+    // last_writer 执行完后会被更新到 write_batch 所属的 writer
     WriteBatch* write_batch = BuildBatchGroup(&last_writer);
     WriteBatchInternal::SetSequence(write_batch, last_sequence + 1);
     last_sequence += WriteBatchInternal::Count(write_batch);
@@ -1294,6 +1294,8 @@ Status DBImpl::Write(const WriteOptions& options, WriteBatch* updates) {
 
 // REQUIRES: Writer list must be non-empty
 // REQUIRES: First writer must have a non-null batch
+// STUDY 把所有合适的write_batch整合成一个写进去
+// 不会把writers所有的writer都整合，会根据sync与否和大小判断是否写入，以提高响应时间
 WriteBatch* DBImpl::BuildBatchGroup(Writer** last_writer) {
   mutex_.AssertHeld();
   assert(!writers_.empty());
@@ -1306,6 +1308,10 @@ WriteBatch* DBImpl::BuildBatchGroup(Writer** last_writer) {
   // Allow the group to grow up to a maximum size, but if the
   // original write is small, limit the growth so we do not slow
   // down the small write too much.
+
+  // STUDY max_size允许每次写入的大小，保证一次不会写入太多的write_batch
+  // 同时如果有比较小的write_batch，会降低max_size，
+  // 避免大的write_batch拖累小write_batch的响应时间
   size_t max_size = 1 << 20;
   if (size <= (128 << 10)) {
     max_size = size + (128 << 10);
@@ -1316,6 +1322,8 @@ WriteBatch* DBImpl::BuildBatchGroup(Writer** last_writer) {
   ++iter;  // Advance past "first"
   for (; iter != writers_.end(); ++iter) {
     Writer* w = *iter;
+    // STUDY
+    // 一般认为同步的比较费时，后面同步的会拖累前面不同步的，所以分批提高响应速度
     if (w->sync && !first->sync) {
       // Do not include a sync write into a batch handled by a non-sync write.
       break;
@@ -1323,6 +1331,7 @@ WriteBatch* DBImpl::BuildBatchGroup(Writer** last_writer) {
 
     if (w->batch != nullptr) {
       size += WriteBatchInternal::ByteSize(w->batch);
+      // STUDY 超出设定的max_size,分批
       if (size > max_size) {
         // Do not make batch too big
         break;
