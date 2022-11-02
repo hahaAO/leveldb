@@ -35,6 +35,8 @@ char* Arena::AllocateFallback(size_t bytes) {
   return result;
 }
 
+// STUDY 与Allocate需要多少分配多少相比，AllocateAligned分配更均衡
+// AllocateAligned会根据操作系统指针大小调整，适当多分配一些空间让内存对齐
 char* Arena::AllocateAligned(size_t bytes) {
   const int align = (sizeof(void*) > 8) ? sizeof(void*) : 8;
   static_assert((align & (align - 1)) == 0,

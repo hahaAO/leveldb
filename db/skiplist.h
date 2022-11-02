@@ -50,6 +50,13 @@ class SkipList {
   SkipList(const SkipList&) = delete;
   SkipList& operator=(const SkipList&) = delete;
 
+  // STUDY 没有删除操作，用插入空元素代替
+  // 理由 1：删除操作会与插入操作互斥，需要加锁，无法应用无锁结构提高性能
+  // 理由 2：删除单个键时需要回收内存，也影响性能.不如整个结构内存一起回收
+
+  // STUDY https://www.jianshu.com/p/6624befde844
+  // 多个读和单个写是并发安全的，因为写从底层往上写，读从顶往下读.读到的其底层必定已插入，读不到的再往底层读也不影响
+  // 多个写不是并发安全的,在LevelDB的MemTable中采用了另外的技巧来处理写并发问题
   // Insert key into the list.
   // REQUIRES: nothing that compares equal to key is currently in the list.
   void Insert(const Key& key);
