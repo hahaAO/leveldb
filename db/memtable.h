@@ -5,11 +5,12 @@
 #ifndef STORAGE_LEVELDB_DB_MEMTABLE_H_
 #define STORAGE_LEVELDB_DB_MEMTABLE_H_
 
-#include <string>
-
 #include "db/dbformat.h"
 #include "db/skiplist.h"
+#include <string>
+
 #include "leveldb/db.h"
+
 #include "util/arena.h"
 
 namespace leveldb {
@@ -17,6 +18,10 @@ namespace leveldb {
 class InternalKeyComparator;
 class MemTableIterator;
 
+// STUDY 内存中的数据表，底层是skiplist
+// 支持迭代遍历，根据键值查找和添加
+//  需要传入比较器(comparator)
+// TODO 还需研究比较器(comparator)
 class MemTable {
  public:
   // MemTables are reference counted.  The initial reference count
