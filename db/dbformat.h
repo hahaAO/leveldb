@@ -14,6 +14,7 @@
 #include "leveldb/filter_policy.h"
 #include "leveldb/slice.h"
 #include "leveldb/table_builder.h"
+
 #include "util/coding.h"
 #include "util/logging.h"
 
@@ -180,6 +181,7 @@ inline bool ParseInternalKey(const Slice& internal_key,
   return (c <= static_cast<uint8_t>(kTypeValue));
 }
 
+// STUDY 根据在不同的存储位置，计算出key在存储位置中的模样
 // A helper class useful for DBImpl::Get()
 class LookupKey {
  public:

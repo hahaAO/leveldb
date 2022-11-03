@@ -114,6 +114,9 @@ bool InternalFilterPolicy::KeyMayMatch(const Slice& key, const Slice& f) const {
   return user_policy_->KeyMayMatch(ExtractUserKey(key), f);
 }
 
+// STUDY 制作一个能记录key所有信息的对象
+// 变长32位数（记录key长度） + key + 64位数（序列号和写入类型）
+// 会根据 key 的大小用函数栈的空间 char[200] 或向系统分配
 LookupKey::LookupKey(const Slice& user_key, SequenceNumber s) {
   size_t usize = user_key.size();
   size_t needed = usize + 13;  // A conservative estimate

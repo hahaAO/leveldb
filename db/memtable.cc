@@ -3,10 +3,13 @@
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
 #include "db/memtable.h"
+
 #include "db/dbformat.h"
+
 #include "leveldb/comparator.h"
 #include "leveldb/env.h"
 #include "leveldb/iterator.h"
+
 #include "util/coding.h"
 
 namespace leveldb {
@@ -99,6 +102,14 @@ void MemTable::Add(SequenceNumber s, ValueType type, const Slice& key,
   table_.Insert(buf);
 }
 
+// STUDY 内存表的查找
+// 用Seek在skiplist中找到等于或更大的元素
+// 没找到，返回false
+// 找到但对比是不等于，也返回false
+// 找到且等于，且类型为写入,返回 true，Status为空
+// 找到且等于，且类型为删除,返回 false，Status为NotFound
+
+// 注意:在seek时，只会找版本号低于当前且最新的
 bool MemTable::Get(const LookupKey& key, std::string* value, Status* s) {
   Slice memkey = key.memtable_key();
   Table::Iterator iter(&table_);

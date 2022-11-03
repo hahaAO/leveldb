@@ -4,14 +4,6 @@
 
 #include "db/db_impl.h"
 
-#include <algorithm>
-#include <atomic>
-#include <cstdint>
-#include <cstdio>
-#include <set>
-#include <string>
-#include <vector>
-
 #include "db/builder.h"
 #include "db/db_iter.h"
 #include "db/dbformat.h"
@@ -22,11 +14,20 @@
 #include "db/table_cache.h"
 #include "db/version_set.h"
 #include "db/write_batch_internal.h"
+#include <algorithm>
+#include <atomic>
+#include <cstdint>
+#include <cstdio>
+#include <set>
+#include <string>
+#include <vector>
+
 #include "leveldb/db.h"
 #include "leveldb/env.h"
 #include "leveldb/status.h"
 #include "leveldb/table.h"
 #include "leveldb/table_builder.h"
+
 #include "port/port.h"
 #include "table/block.h"
 #include "table/merger.h"
@@ -1112,6 +1113,11 @@ int64_t DBImpl::TEST_MaxNextLevelOverlappingBytes() {
   return versions_->MaxNextLevelOverlappingBytes();
 }
 
+// STUDY 读数据库的流程
+// 加锁，拿到 snapshot,mem,imm,current
+// 解锁，根据 snapshot 依次在 mem,imm,current 中查找
+// 再次加锁，根据情况出发合并，并释放 mem,imm,current
+// 解锁返回
 Status DBImpl::Get(const ReadOptions& options, const Slice& key,
                    std::string* value) {
   Status s;

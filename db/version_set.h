@@ -15,12 +15,12 @@
 #ifndef STORAGE_LEVELDB_DB_VERSION_SET_H_
 #define STORAGE_LEVELDB_DB_VERSION_SET_H_
 
+#include "db/dbformat.h"
+#include "db/version_edit.h"
 #include <map>
 #include <set>
 #include <vector>
 
-#include "db/dbformat.h"
-#include "db/version_edit.h"
 #include "port/port.h"
 #include "port/thread_annotations.h"
 
@@ -59,6 +59,7 @@ bool SomeFileOverlapsRange(const InternalKeyComparator& icmp,
 
 class Version {
  public:
+  // STUDY 说明是在第几层哪个文件找到的
   struct GetStats {
     FileMetaData* seek_file;
     int seek_file_level;

@@ -4,16 +4,17 @@
 
 #include "db/version_set.h"
 
-#include <algorithm>
-#include <cstdio>
-
 #include "db/filename.h"
 #include "db/log_reader.h"
 #include "db/log_writer.h"
 #include "db/memtable.h"
 #include "db/table_cache.h"
+#include <algorithm>
+#include <cstdio>
+
 #include "leveldb/env.h"
 #include "leveldb/table_builder.h"
+
 #include "table/merger.h"
 #include "table/two_level_iterator.h"
 #include "util/coding.h"
@@ -321,6 +322,8 @@ void Version::ForEachOverlapping(Slice user_key, Slice internal_key, void* arg,
   }
 }
 
+// STUDY 在Version中的查找
+// https://bean-li.github.io/leveldb-version/
 Status Version::Get(const ReadOptions& options, const LookupKey& k,
                     std::string* value, GetStats* stats) {
   stats->seek_file = nullptr;
