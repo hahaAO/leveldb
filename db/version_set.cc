@@ -89,6 +89,7 @@ int FindFile(const InternalKeyComparator& icmp,
              const std::vector<FileMetaData*>& files, const Slice& key) {
   uint32_t left = 0;
   uint32_t right = files.size();
+  // STUDY 文件已经排好序，这里二分查找即可
   while (left < right) {
     uint32_t mid = (left + right) / 2;
     const FileMetaData* f = files[mid];
@@ -324,11 +325,13 @@ void Version::ForEachOverlapping(Slice user_key, Slice internal_key, void* arg,
 
 // STUDY 在Version中的查找
 // https://bean-li.github.io/leveldb-version/
+// why no mutex ???
 Status Version::Get(const ReadOptions& options, const LookupKey& k,
                     std::string* value, GetStats* stats) {
   stats->seek_file = nullptr;
   stats->seek_file_level = -1;
 
+  // STUDY 这里其实可以用lambda封装，比起定义内嵌类更直观
   struct State {
     Saver saver;
     GetStats* stats;
@@ -340,7 +343,7 @@ Status Version::Get(const ReadOptions& options, const LookupKey& k,
     VersionSet* vset;
     Status s;
     bool found;
-
+    // arg 其实就是一个 State指针，用于保存状态，个人感觉不如用lambda
     static bool Match(void* arg, int level, FileMetaData* f) {
       State* state = reinterpret_cast<State*>(arg);
 
