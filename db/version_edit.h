@@ -26,6 +26,7 @@ struct FileMetaData {
   InternalKey largest;   // Largest internal key served by table
 };
 
+// STUDY 用来记录版本变更，编码后写入日志
 class VersionEdit {
  public:
   VersionEdit() { Clear(); }

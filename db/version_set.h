@@ -57,6 +57,7 @@ bool SomeFileOverlapsRange(const InternalKeyComparator& icmp,
                            const Slice* smallest_user_key,
                            const Slice* largest_user_key);
 
+// 数据库的一个版本，说明当前版本可视文件，提供一些查找、计算压缩分数之类的操作
 class Version {
  public:
   // STUDY 说明是在第几层哪个文件找到的
@@ -68,6 +69,9 @@ class Version {
   // Append to *iters a sequence of iterators that will
   // yield the contents of this Version when merged together.
   // REQUIRES: This version has been saved (see VersionSet::SaveTo)
+  // STUDY 这里不直接返回，而是改变实参 iters
+  // 是因为iters在sst的iters之前还带着memtabel和imtabel的iters
+  // 这样做直接把sst的iters加到vector里面的位置而不是在函数栈返回再拼接，少一次sst的vector在堆上的分配
   void AddIterators(const ReadOptions&, std::vector<Iterator*>* iters);
 
   // Lookup the value for key.  If found, store it in *val and
@@ -165,6 +169,7 @@ class Version {
   int compaction_level_;
 };
 
+// STUDY 管理数据库所有版本的类,提供更改、访问、恢复版本和合并等操作
 class VersionSet {
  public:
   VersionSet(const std::string& dbname, const Options* options,
